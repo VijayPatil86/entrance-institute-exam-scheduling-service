@@ -48,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		try {
 			Claims payload = jwtUtil.getJwtPayload(jwtToken);
 			if(payload.get("roles") == null) {
-				sendErrorResponse(response, HttpServletResponse.SC_FOUND, "missing Roles in token");
+				sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "missing Roles in token");
 				return;
 			}
 			CustomPrincipal customPrincipal = CustomPrincipal.builder()
