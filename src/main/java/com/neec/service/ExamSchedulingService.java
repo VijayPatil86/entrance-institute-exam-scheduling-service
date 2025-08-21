@@ -1,10 +1,11 @@
 package com.neec.service;
 
 import com.neec.dto.CreateExamCenterRequestDTO;
+import com.neec.dto.CreateExamCenterResponseDTO;
 
 public interface ExamSchedulingService {
 	// Admin Operations
-	void createExamCenter(CreateExamCenterRequestDTO dto);
+	CreateExamCenterResponseDTO createExamCenter(CreateExamCenterRequestDTO dto);
 	//void addExamSlot(Long centerId, ExamSlotDTO dto);
 	//List<ExamCenterDTO> getAllCenters();
 
