@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
+import com.neec.dto.CreateExamSlotRequest;
 import com.neec.entity.ExamCenter;
 import com.neec.repository.ExamCenterRepository;
 
@@ -43,5 +44,11 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 				.centerContactPerson(savedExamCenter.getContactPerson())
 				.centerContactPhone(savedExamCenter.getContactPhone())
 				.build();
+	}
+
+	@Transactional
+	@Override
+	public void addExamSlot(Long centerId, CreateExamSlotRequest dto) {
+		
 	}
 }
