@@ -80,7 +80,7 @@ public class CreateExamSlotRequestTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"11:25"})
+	@ValueSource(strings = {"14:25"})
 	void test_examStartTime_Valid(String input) {
 		CreateExamSlotRequest slotRequest = CreateExamSlotRequest.builder()
 				.examStartTime(LocalTime.parse(input))
