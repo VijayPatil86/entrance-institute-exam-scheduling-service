@@ -29,12 +29,12 @@ public class CreateExamSlotRequest {
 	LocalDate examDate;
 
 	@NotNull(message = "Exam Start Time is required")
-	@JsonFormat(pattern = "hh:mm a")	// hh: 1-12, mm: 00-59, a: AM/PM
+	@JsonFormat(pattern = "HH:mm")	// 24-hours time
 	// If the input doesn’t match the format, Jackson will throw a parsing exception automatically (which you can handle globally).
 	LocalTime examStartTime;
 
 	@NotNull(message = "Exam End Time is required")
-	@JsonFormat(pattern = "hh:mm a")
+	@JsonFormat(pattern = "HH:mm")
 	LocalTime examEndTime;
 
 	@Digits(fraction = 0, integer = 3, message = "Total Seats must be a numeric")
