@@ -7,15 +7,25 @@ import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
 import com.neec.entity.ExamCenter;
+import com.neec.entity.ExamSlot;
 import com.neec.repository.ExamCenterRepository;
+import com.neec.repository.ExamSlotRepository;
+
+import io.micrometer.observation.annotation.Observed;
+import jakarta.persistence.EntityManager;
 
 @Service
 @Transactional
 public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 	private ExamCenterRepository examCenterRepository;
+	private ExamSlotRepository examSlotRepository;
+	private EntityManager entityManager;
 
-	public ExamSchedulingServiceImpl(ExamCenterRepository examCenterRepository) {
+	public ExamSchedulingServiceImpl(ExamCenterRepository examCenterRepository,
+			ExamSlotRepository examSlotRepository, EntityManager entityManager) {
 		this.examCenterRepository = examCenterRepository;
+		this.examSlotRepository = examSlotRepository;
+		this.entityManager = entityManager;
 	}
 
 	@Transactional
@@ -46,9 +56,29 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 				.build();
 	}
 
+	@Observed(name = "scheduling.service.add.slot", contextualName = "adding new exam slot")
 	@Transactional
 	@Override
 	public void addExamSlot(Long centerId, CreateExamSlotRequest dto) {
-		
+		if(!examCenterRepository.existsById(centerId))
+			throw new IllegalArgumentException("Exam Center with id " + centerId + " not found.");
+		if(examSlotRepository.existsByExamCenter_CenterIdAndExamDateAndStartTimeAndEndTime(
+				centerId, dto.getExamDate(), dto.getExamStartTime(), dto.getExamEndTime())
+		) {
+			String exceptionMessage = String.format(
+					"Exam Slot with centerId=%d, date=%s, start time=%s, end time=%s already exists.",
+					centerId, dto.getExamDate(), dto.getExamStartTime(), dto.getExamEndTime()
+			);
+			throw new IllegalArgumentException(exceptionMessage);
+		}
+		ExamCenter examCenter = entityManager.getReference(ExamCenter.class, centerId);
+		ExamSlot examSlot = ExamSlot.builder()
+				.examCenter(examCenter)
+				.examDate(dto.getExamDate())
+				.startTime(dto.getExamStartTime())
+				.endTime(dto.getExamEndTime())
+				.totalSeats(dto.getTotalSeats())
+				.build();
+		examSlotRepository.save(examSlot);
 	}
 }
