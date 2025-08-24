@@ -1,7 +1,7 @@
 package com.neec.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +29,14 @@ import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
+import com.neec.dto.ExamCenterResponseDTO;
 import com.neec.service.ExamSchedulingService;
 import com.neec.util.JwtUtil;
 
@@ -180,6 +183,59 @@ public class ExamSchedulingControllerTest {
 		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
 		assertEquals("Exam Slot added successfully",
 				jsonNode.get("status").asText());
+	}
+
+	@Test
+	void test_getAllExamCenters() throws Exception {
+		List<ExamCenterResponseDTO> listExamCenterResponseDTOs = List.of(
+				buildAndReturn_ExamCenterResponseDTO(1L, "College of Commerce", "M.G.Road", "Thane", "Maharashtra", "123456", "Mr. More", "9876543210"),
+				buildAndReturn_ExamCenterResponseDTO(2L, "College of Arts", "C.D. Road", "Delhi", "Delhi", "456789", "Mr. Sane", "8876543210")
+		);
+		when(mockExamSchedulingService.getAllCenters()).thenReturn(listExamCenterResponseDTOs);
+		RequestBuilder request = MockMvcRequestBuilders.get("/api/v1/admin/centers");
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
+		assertNotNull(result.getResponse().getContentAsString());
+		List<ExamCenterResponseDTO> returnedListExamCenterResponseDTOs = objectMapper.readValue(
+				result.getResponse().getContentAsString(),
+				new TypeReference<List<ExamCenterResponseDTO>>() {}
+			);
+		ExamCenterResponseDTO dto = returnedListExamCenterResponseDTOs.get(0);
+		assertEquals(1L, dto.getCenterId());
+		assertEquals("College of Commerce", dto.getCenterName());
+		assertEquals("M.G.Road", dto.getCenterAddress());
+		assertEquals("Thane", dto.getCenterCity());
+		assertEquals("Maharashtra", dto.getCenterState());
+		assertEquals("123456", dto.getCenterPinCode());
+		assertEquals("Mr. More", dto.getCenterContactPerson());
+		assertEquals("9876543210", dto.getCenterContactPhone());
+		assertNotNull(returnedListExamCenterResponseDTOs.get(1));
+		dto = returnedListExamCenterResponseDTOs.get(1);
+		assertEquals(2L, dto.getCenterId());
+		assertEquals("College of Arts", dto.getCenterName());
+		assertEquals("C.D. Road", dto.getCenterAddress());
+		assertEquals("Delhi", dto.getCenterCity());
+		assertEquals("Delhi", dto.getCenterState());
+		assertEquals("456789", dto.getCenterPinCode());
+		assertEquals("Mr. Sane", dto.getCenterContactPerson());
+		assertEquals("8876543210", dto.getCenterContactPhone());
+	}
+
+	private ExamCenterResponseDTO buildAndReturn_ExamCenterResponseDTO(Long centerId, String centerName,
+			String centerAddress, String centerCity, String centerState,
+			String centerPinCode, String centerContactPerson, String centerContactPhone) {
+		return ExamCenterResponseDTO.builder()
+				.centerId(centerId)
+				.centerName(centerName)
+				.centerAddress(centerAddress)
+				.centerCity(centerCity)
+				.centerState(centerState)
+				.centerPinCode(centerPinCode)
+				.centerContactPerson(centerContactPerson)
+				.centerContactPhone(centerContactPhone)
+				.build();
 	}
 
 	private String toJsonString(CreateExamCenterRequestDTO dto) throws JsonProcessingException {
