@@ -4,10 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,13 +23,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
+import com.neec.dto.CreateExamSlotRequest;
 import com.neec.entity.ExamCenter;
+import com.neec.entity.ExamSlot;
 import com.neec.repository.ExamCenterRepository;
+import com.neec.repository.ExamSlotRepository;
+
+import jakarta.persistence.EntityManager;
 
 @ExtendWith(MockitoExtension.class)
 public class ExamSchedulingServiceTest {
 	@Mock
 	private ExamCenterRepository mockExamCenterRepository;
+	@Mock
+	private ExamSlotRepository mockExamSlotRepository;
+	@Mock
+	private EntityManager mockEntityManager;
 	@InjectMocks
 	private ExamSchedulingServiceImpl examSchedulingServiceImpl;
 
@@ -78,5 +92,73 @@ public class ExamSchedulingServiceTest {
 		assertEquals("9876543210", toSaveExamCenter.getContactPhone());
 
 		assertEquals(1L, createExamCenterResponseDTO.getCenterId());
+	}
+
+	@Test
+	void test_addExamSlot_ExamCenterNotExists_RaiseExecption() {
+		when(mockExamCenterRepository.existsById(anyLong()))
+			.thenReturn(false);
+		IllegalArgumentException arg = assertThrows(IllegalArgumentException.class,
+				() -> examSchedulingServiceImpl.addExamSlot(1L, new CreateExamSlotRequest()));
+		verify(mockExamCenterRepository).existsById(anyLong());
+		assertEquals("Exam Center with id 1 not found.", arg.getMessage());
+	}
+
+	@Test
+	void test_addExamSlot_ExamCenterDateStartTimeEndTime_Exists_RaiseException() {
+		when(mockExamCenterRepository.existsById(anyLong())).thenReturn(true);
+		when(mockExamSlotRepository.existsByExamCenter_CenterIdAndExamDateAndStartTimeAndEndTime(
+				anyLong(), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class)))
+			.thenReturn(true);
+		CreateExamSlotRequest slotRequest = CreateExamSlotRequest.builder()
+				.examDate(LocalDate.of(2025, 12, 01))
+				.examStartTime(LocalTime.of(11, 0))
+				.examEndTime(LocalTime.of(12, 0))
+				.build();
+		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+				() -> examSchedulingServiceImpl.addExamSlot(1L, slotRequest));
+		verify(mockExamCenterRepository).existsById(anyLong());
+		verify(mockExamSlotRepository).existsByExamCenter_CenterIdAndExamDateAndStartTimeAndEndTime(
+				anyLong(), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class));
+		assertEquals("Exam Slot with centerId=1, date=2025-12-01, start time=11:00, end time=12:00 already exists.", ex.getMessage());
+	}
+
+	@Test
+	void test_addExamSlot_New_ExamCenterDateStartTimeEndTime_Save() {
+		when(mockExamCenterRepository.existsById(anyLong())).thenReturn(true);
+		when(mockExamSlotRepository.existsByExamCenter_CenterIdAndExamDateAndStartTimeAndEndTime(
+				anyLong(), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class)))
+			.thenReturn(false);
+		when(mockEntityManager.getReference(eq(ExamCenter.class), anyLong()))
+			.thenReturn(ExamCenter.builder().centerId(1L).build());
+		CreateExamSlotRequest slotRequest = CreateExamSlotRequest.builder()
+				.examDate(LocalDate.of(2025, 12, 01))
+				.examStartTime(LocalTime.of(11, 0))
+				.examEndTime(LocalTime.of(12, 0))
+				.totalSeats(25)
+				.build();
+		ExamSlot savedExamSlot = ExamSlot.builder()
+				.slotId(1L)
+				.examDate(LocalDate.of(2025, 12, 01))
+				.startTime(LocalTime.of(11, 0))
+				.endTime(LocalTime.of(12, 0))
+				.totalSeats(25)
+				.build();
+		when(mockExamSlotRepository.save(any(ExamSlot.class)))
+			.thenReturn(savedExamSlot);
+		examSchedulingServiceImpl.addExamSlot(1L, slotRequest);
+		verify(mockExamCenterRepository).existsById(anyLong());
+		verify(mockExamSlotRepository).existsByExamCenter_CenterIdAndExamDateAndStartTimeAndEndTime(
+				anyLong(), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class));
+		verify(mockEntityManager).getReference(eq(ExamCenter.class), anyLong());
+		ArgumentCaptor<ExamSlot> argCaptorExamSlot =
+				ArgumentCaptor.forClass(ExamSlot.class);
+		verify(mockExamSlotRepository).save(argCaptorExamSlot.capture());
+		ExamSlot toSaveExamSlot = argCaptorExamSlot.getValue();
+		assertEquals(1L, toSaveExamSlot.getExamCenter().getCenterId());
+		assertTrue(toSaveExamSlot.getExamDate().equals(LocalDate.of(2025, 12, 01)));
+		assertTrue(toSaveExamSlot.getStartTime().equals(LocalTime.of(11, 0)));
+		assertTrue(toSaveExamSlot.getEndTime().equals(LocalTime.of(12, 0)));
+		assertEquals(25, toSaveExamSlot.getTotalSeats());
 	}
 }
