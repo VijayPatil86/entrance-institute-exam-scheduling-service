@@ -1,11 +1,14 @@
 package com.neec.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
+import com.neec.dto.ExamCenterResponseDTO;
 import com.neec.entity.ExamCenter;
 import com.neec.entity.ExamSlot;
 import com.neec.repository.ExamCenterRepository;
@@ -80,5 +83,24 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 				.totalSeats(dto.getTotalSeats())
 				.build();
 		examSlotRepository.save(examSlot);
+	}
+
+	@Transactional(readOnly = true)
+	public List<ExamCenterResponseDTO> getAllCenters() {
+		List<ExamCenter> listExamCenters = examCenterRepository.findAll();
+		List<ExamCenterResponseDTO> listExamCenterResponseDTOs =
+				listExamCenters.stream()
+					.map(examCenter -> ExamCenterResponseDTO.builder()
+							.centerId(examCenter.getCenterId())
+							.centerName(examCenter.getCenterName())
+							.centerAddress(examCenter.getAddressLine())
+							.centerCity(examCenter.getCity())
+							.centerState(examCenter.getState())
+							.centerPinCode(examCenter.getPinCode())
+							.centerContactPerson(examCenter.getContactPerson())
+							.centerContactPhone(examCenter.getContactPhone())
+							.build())
+					.toList();
+		return listExamCenterResponseDTOs;
 	}
 }
