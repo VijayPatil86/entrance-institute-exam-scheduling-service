@@ -1,6 +1,7 @@
 package com.neec.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
+import com.neec.dto.ExamCenterResponseDTO;
 import com.neec.entity.ExamCenter;
 import com.neec.entity.ExamSlot;
 import com.neec.repository.ExamCenterRepository;
@@ -160,5 +163,53 @@ public class ExamSchedulingServiceTest {
 		assertTrue(toSaveExamSlot.getStartTime().equals(LocalTime.of(11, 0)));
 		assertTrue(toSaveExamSlot.getEndTime().equals(LocalTime.of(12, 0)));
 		assertEquals(25, toSaveExamSlot.getTotalSeats());
+	}
+
+	@Test
+	void test_getAllExamCenters() {
+		List<ExamCenter> listExamCenters = List.of(
+			buildAndReturn_ExamCenter(1L, "College of Commerce", "M.G.Road", "Thane", "Maharashtra", "123456", "Mr. More", "9876543210"),
+			buildAndReturn_ExamCenter(2L, "College of Arts", "C.D. Road", "Delhi", "Delhi", "456789", "Mr. Sane", "8876543210")
+		);
+		when(mockExamCenterRepository.findAll()).thenReturn(listExamCenters);
+		List<ExamCenterResponseDTO> listExamCenterResponseDTOs =
+				examSchedulingServiceImpl.getAllCenters();
+		verify(mockExamCenterRepository).findAll();
+		assertNotNull(listExamCenterResponseDTOs);
+		assertNotNull(listExamCenterResponseDTOs.get(0));
+		ExamCenterResponseDTO dto = listExamCenterResponseDTOs.get(0);
+		assertEquals(1L, dto.getCenterId());
+		assertEquals("College of Commerce", dto.getCenterName());
+		assertEquals("M.G.Road", dto.getCenterAddress());
+		assertEquals("Thane", dto.getCenterCity());
+		assertEquals("Maharashtra", dto.getCenterState());
+		assertEquals("123456", dto.getCenterPinCode());
+		assertEquals("Mr. More", dto.getCenterContactPerson());
+		assertEquals("9876543210", dto.getCenterContactPhone());
+		assertNotNull(listExamCenterResponseDTOs.get(1));
+		dto = listExamCenterResponseDTOs.get(1);
+		assertEquals(2L, dto.getCenterId());
+		assertEquals("College of Arts", dto.getCenterName());
+		assertEquals("C.D. Road", dto.getCenterAddress());
+		assertEquals("Delhi", dto.getCenterCity());
+		assertEquals("Delhi", dto.getCenterState());
+		assertEquals("456789", dto.getCenterPinCode());
+		assertEquals("Mr. Sane", dto.getCenterContactPerson());
+		assertEquals("8876543210", dto.getCenterContactPhone());
+	}
+
+	private ExamCenter buildAndReturn_ExamCenter(Long centerId, String centerName,
+			String centerAddress, String centerCity, String centerState,
+			String centerPinCode, String centerContactPerson, String centerContactPhone) {
+		return ExamCenter.builder()
+				.centerId(centerId)
+				.centerName(centerName)
+				.addressLine(centerAddress)
+				.city(centerCity)
+				.state(centerState)
+				.pinCode(centerPinCode)
+				.contactPerson(centerContactPerson)
+				.contactPhone(centerContactPhone)
+				.build();
 	}
 }
