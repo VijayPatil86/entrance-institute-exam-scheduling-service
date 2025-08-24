@@ -1,12 +1,19 @@
 package com.neec.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +33,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
+import com.neec.dto.CreateExamSlotRequest;
 import com.neec.service.ExamSchedulingService;
 import com.neec.util.JwtUtil;
 
@@ -107,7 +115,78 @@ public class ExamSchedulingControllerTest {
 		assertTrue(jsonNode.get("error").asText().equals("An Exam Center with this Name already exists."));
 	}
 
+	@Test
+	void test_addExamSlot_ExamCenterNotExists_RaiseExecption() throws Exception {
+		doThrow(new IllegalArgumentException("Exam Center with id 1 not found."))
+			.when(mockExamSchedulingService).addExamSlot(anyLong(), any(CreateExamSlotRequest.class));
+		CreateExamSlotRequest slotRequest = CreateExamSlotRequest.builder()
+				.examDate(LocalDate.of(2025, 10, 10))
+				.examStartTime(LocalTime.of(10, 0))
+				.examEndTime(LocalTime.of(11, 0))
+				.totalSeats(25)
+				.build();
+		RequestBuilder request = MockMvcRequestBuilders.post("/api/v1/admin/centers/1/slots")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(toJsonString(slotRequest));
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		verify(mockExamSchedulingService).addExamSlot(anyLong(), any(CreateExamSlotRequest.class));
+		assertEquals(HttpStatus.BAD_REQUEST.value(), result.getResponse().getStatus());
+		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
+		assertEquals("Exam Center with id 1 not found.", jsonNode.get("error").asText());
+	}
+
+	@Test
+	void test_addExamSlot_ExamCenterDateStartTimeEndTime_Exists_RaiseException() throws Exception {
+		doThrow(new IllegalArgumentException("Exam Slot with centerId=1, date=2025-10-10, start time=10:00, end time=11:00 already exists."))
+			.when(mockExamSchedulingService).addExamSlot(anyLong(), any(CreateExamSlotRequest.class));
+		CreateExamSlotRequest slotRequest = CreateExamSlotRequest.builder()
+				.examDate(LocalDate.of(2025, 10, 10))
+				.examStartTime(LocalTime.of(10, 0))
+				.examEndTime(LocalTime.of(11, 0))
+				.totalSeats(25)
+				.build();
+		RequestBuilder request = MockMvcRequestBuilders.post("/api/v1/admin/centers/1/slots")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(toJsonString(slotRequest));
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		verify(mockExamSchedulingService).addExamSlot(anyLong(), any(CreateExamSlotRequest.class));
+		assertEquals(HttpStatus.BAD_REQUEST.value(), result.getResponse().getStatus());
+		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
+		assertEquals("Exam Slot with centerId=1, date=2025-10-10, start time=10:00, end time=11:00 already exists.",
+				jsonNode.get("error").asText());
+	}
+
+	@Test
+	void test_addExamSlot_New_ExamCenterDateStartTimeEndTime_Save() throws Exception {
+		doNothing().when(mockExamSchedulingService).addExamSlot(anyLong(), any(CreateExamSlotRequest.class));
+		CreateExamSlotRequest slotRequest = CreateExamSlotRequest.builder()
+				.examDate(LocalDate.of(2025, 10, 10))
+				.examStartTime(LocalTime.of(10, 0))
+				.examEndTime(LocalTime.of(11, 0))
+				.totalSeats(25)
+				.build();
+		RequestBuilder request = MockMvcRequestBuilders.post("/api/v1/admin/centers/1/slots")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(toJsonString(slotRequest));
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		verify(mockExamSchedulingService).addExamSlot(anyLong(), any(CreateExamSlotRequest.class));
+		assertEquals(HttpStatus.CREATED.value(), result.getResponse().getStatus());
+		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
+		assertEquals("Exam Slot added successfully",
+				jsonNode.get("status").asText());
+	}
+
 	private String toJsonString(CreateExamCenterRequestDTO dto) throws JsonProcessingException {
+		return objectMapper.writeValueAsString(dto);
+	}
+
+	private String toJsonString(CreateExamSlotRequest dto) throws JsonProcessingException {
 		return objectMapper.writeValueAsString(dto);
 	}
 
