@@ -27,6 +27,7 @@ import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
 import com.neec.dto.ExamCenterResponseDTO;
+import com.neec.dto.ExamSlotResponse;
 import com.neec.entity.ExamCenter;
 import com.neec.entity.ExamSlot;
 import com.neec.repository.ExamCenterRepository;
@@ -220,5 +221,39 @@ public class ExamSchedulingServiceTest {
 		List<String> returnedListCityNames = examSchedulingServiceImpl.getAvailableCities();
 		verify(mockExamCenterRepository).findAllCities();
 		assertEquals(listCityNames, returnedListCityNames, "Returned city list is incorrect — content or order does not match expected");
+	}
+
+	@Test
+	void test_findAvailableSlotsForGivenCity() {
+		ExamCenter examCenter_Pune = ExamCenter.builder().centerName("A B College").addressLine("A. B. Road").city("Pune")
+				.state("Maharashtra").pinCode("147258").contactPerson("Mr. R.K. Sane")
+				.contactPhone("9876543210").build();
+		List<ExamSlot> listExamSlots = List.of(
+				ExamSlot.builder()
+					.examCenter(examCenter_Pune)
+					.examDate(LocalDate.of(2025, 01, 01))
+					.startTime(LocalTime.of(10, 0))
+					.endTime(LocalTime.of(10, 30))
+					.totalSeats(10)
+					.bookedSeats(5)
+				.build(),
+				ExamSlot.builder()
+					.examCenter(examCenter_Pune)
+					.examDate(LocalDate.of(2025, 01, 01))
+					.startTime(LocalTime.of(11, 0))
+					.endTime(LocalTime.of(11, 30))
+					.totalSeats(20)
+					.bookedSeats(15)
+				.build()
+			);
+		when(mockExamSlotRepository.findAvailableSlotsByCity(anyString()))
+			.thenReturn(listExamSlots);
+		List<ExamSlotResponse> listExamSlotResponse =
+				examSchedulingServiceImpl.findAvailableSlots("Pune");
+		verify(mockExamSlotRepository).findAvailableSlotsByCity(anyString());
+		assertEquals(2, listExamSlotResponse.size(), "Expected exactly 2 available slots");
+		ExamSlotResponse firstSlot = listExamSlotResponse.get(0);
+		assertEquals(5, firstSlot.getAvailableSeats(), "Available seats calculation is icorrect for first slot");
+		assertEquals("Pune", firstSlot.getCenterCity(), "Exepcted slot city as Pune");
 	}
 }
