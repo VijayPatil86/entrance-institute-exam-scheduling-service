@@ -18,6 +18,8 @@ import java.time.LocalTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -254,6 +256,30 @@ public class ExamSchedulingControllerTest {
 				result.getResponse().getContentAsString(),
 				new TypeReference<List<String>>() {});
 		assertEquals(listCityNames, returnedListCityNames, "Returned city list is incorrect — content or order does not match expected");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"", "wrongParam", "city123"})
+	void test_getAvailableSlotsByCity_Missing_RequestParameter_City(String input) throws Exception {
+		RequestBuilder request = MockMvcRequestBuilders.get("/api/v1/centers/slots?" + input);
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		assertEquals(HttpStatus.BAD_REQUEST.value(), result.getResponse().getStatus());
+		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
+		assertTrue(jsonNode.get("error").asText().equals("The required request parameter 'city' is missing"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"="})
+	void test_getAvailableSlotsByCity_Blank_RequestParameter_City(String input) throws Exception {
+		RequestBuilder request = MockMvcRequestBuilders.get("/api/v1/centers/slots?city" + input);
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		assertEquals(HttpStatus.BAD_REQUEST.value(), result.getResponse().getStatus());
+		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
+		assertTrue(jsonNode.get("errors").get(0).asText().equals("value of request parameter city can not be blank"));
 	}
 
 	@Test
