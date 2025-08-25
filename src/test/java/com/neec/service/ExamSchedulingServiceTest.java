@@ -212,4 +212,13 @@ public class ExamSchedulingServiceTest {
 				.contactPhone(centerContactPhone)
 				.build();
 	}
+
+	@Test
+	void test_getAvailableCities_DistinctCityNames_NaturalOrder() {
+		List<String> listCityNames = List.of("Mumbai", "Pune", "Thane");
+		when(mockExamCenterRepository.findAllCities()).thenReturn(listCityNames);
+		List<String> returnedListCityNames = examSchedulingServiceImpl.getAvailableCities();
+		verify(mockExamCenterRepository).findAllCities();
+		assertEquals(listCityNames, returnedListCityNames, "Returned city list is incorrect — content or order does not match expected");
+	}
 }
