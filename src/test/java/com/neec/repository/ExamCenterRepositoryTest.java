@@ -55,7 +55,7 @@ public class ExamCenterRepositoryTest {
 		assertEquals(copyOfCityNames, listCityNames, "city names are not in natural order");
 	}
 
-	List<ExamCenter> sampleExamCenters() {
+	private List<ExamCenter> sampleExamCenters() {
 		return List.of(
 				ExamCenter.builder().centerName("A B College").addressLine("A. B. Road").city("Pune")
 						.state("Maharashtra").pinCode("147258").contactPerson("Mr. R.K. Sane")
