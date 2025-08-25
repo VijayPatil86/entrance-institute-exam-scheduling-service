@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -37,6 +38,7 @@ import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
 import com.neec.dto.ExamCenterResponseDTO;
+import com.neec.dto.ExamSlotResponse;
 import com.neec.service.ExamSchedulingService;
 import com.neec.util.JwtUtil;
 
@@ -252,6 +254,72 @@ public class ExamSchedulingControllerTest {
 				result.getResponse().getContentAsString(),
 				new TypeReference<List<String>>() {});
 		assertEquals(listCityNames, returnedListCityNames, "Returned city list is incorrect — content or order does not match expected");
+	}
+
+	@Test
+	void test_getAvailableSlotsByCity() throws Exception {
+		List<ExamSlotResponse> listExamSlotResponse = buildAndReturn_List_ExamSlotResponse();
+		when(mockExamSchedulingService.findAvailableSlots(anyString()))
+			.thenReturn(listExamSlotResponse);
+		RequestBuilder request = MockMvcRequestBuilders.get("/api/v1/centers/slots?city=Pune");
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		verify(mockExamSchedulingService).findAvailableSlots(anyString());
+		assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
+		List<ExamSlotResponse> returnedListExamSlotResponse =
+				objectMapper.readValue(
+						result.getResponse().getContentAsString(),
+						new TypeReference<List<ExamSlotResponse>>() {}
+				);
+		assertEquals(3, returnedListExamSlotResponse.size(), "Expected 3 avilable slots");
+		ExamSlotResponse firstSlot = returnedListExamSlotResponse.get(0);
+		assertEquals("Pune", firstSlot.getCenterCity(), "Expected Exam Center as Pune");
+		assertEquals(5, firstSlot.getAvailableSeats(), "Expected number of available seats be 5");
+	}
+
+	private List<ExamSlotResponse> buildAndReturn_List_ExamSlotResponse(){
+		return List.of(
+				ExamSlotResponse.builder()
+					.slotId(1L)
+					.examDate(LocalDate.of(2025, 12, 01))
+					.examStartTime(LocalTime.of(10, 00))
+					.examEndTime(LocalTime.of(11, 0))
+					.availableSeats(5)
+					.centerId(1L)
+					.centerName("College of Commerce")
+					.centerAddress("A. B. Road")
+					.centerCity("Pune")
+					.centerState("Maharashtra")
+					.centerPinCode("123456")
+				.build(),
+				ExamSlotResponse.builder()
+					.slotId(2L)
+					.examDate(LocalDate.of(2025, 12, 03))
+					.examStartTime(LocalTime.of(12, 00))
+					.examEndTime(LocalTime.of(13, 0))
+					.availableSeats(15)
+					.centerId(1L)
+					.centerName("College of Arts")
+					.centerAddress("C. D. Road")
+					.centerCity("Pune")
+					.centerState("Maharashtra")
+					.centerPinCode("456789")
+				.build(),
+				ExamSlotResponse.builder()
+					.slotId(3L)
+					.examDate(LocalDate.of(2025, 12, 05))
+					.examStartTime(LocalTime.of(10, 00))
+					.examEndTime(LocalTime.of(11, 0))
+					.availableSeats(20)
+					.centerId(1L)
+					.centerName("College of Science")
+					.centerAddress("E. F. Road")
+					.centerCity("Pune")
+					.centerState("Maharashtra")
+					.centerPinCode("147258")
+				.build()
+		);
 	}
 
 	private String toJsonString(CreateExamCenterRequestDTO dto) throws JsonProcessingException {
