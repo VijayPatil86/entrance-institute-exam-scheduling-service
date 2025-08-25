@@ -11,7 +11,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import jakarta.validation.ConstraintViolationException;
 
@@ -42,7 +41,8 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(exception = {MissingServletRequestParameterException.class})
 	public ResponseEntity<?> handleMissingServletRequestParameterException(MissingServletRequestParameterException ex) {
-		return ResponseEntity.badRequest().body(Map.of("errors", ex.getMessage()));
+		String message = "The required request parameter '" + ex.getParameterName() + "' is missing";
+		return ResponseEntity.badRequest().body(Map.of("error", message));
 	}
 
 	@ExceptionHandler(exception = {ConstraintViolationException.class})
