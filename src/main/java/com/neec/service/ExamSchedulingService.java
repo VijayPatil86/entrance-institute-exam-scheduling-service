@@ -6,6 +6,7 @@ import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
 import com.neec.dto.ExamCenterResponseDTO;
+import com.neec.dto.ExamSlotResponse;
 
 public interface ExamSchedulingService {
 	// Admin Operations
@@ -15,6 +16,6 @@ public interface ExamSchedulingService {
 
 	// Applicant Operations
 	List<String> getAvailableCities();
-	//List<ExamSlotDTO> findAvailableSlots(String city);
+	List<ExamSlotResponse> findAvailableSlots(String city);
 	//void bookSlot(Long userId, Long slotId);
 }

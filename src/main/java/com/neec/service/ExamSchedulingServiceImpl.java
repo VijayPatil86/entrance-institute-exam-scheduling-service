@@ -9,6 +9,7 @@ import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
 import com.neec.dto.ExamCenterResponseDTO;
+import com.neec.dto.ExamSlotResponse;
 import com.neec.entity.ExamCenter;
 import com.neec.entity.ExamSlot;
 import com.neec.repository.ExamCenterRepository;
@@ -108,5 +109,27 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 	public List<String> getAvailableCities(){
 		List<String> listCityNames = examCenterRepository.findAllCities();
 		return listCityNames;
+	}
+
+	@Transactional(readOnly = true)
+	public List<ExamSlotResponse> findAvailableSlots(String city) {
+		List<ExamSlot> listExamSlots = examSlotRepository.findAvailableSlotsByCity(city);
+		return listExamSlots.stream()
+				.map(examSlot ->
+					ExamSlotResponse.builder()
+						.slotId(examSlot.getSlotId())
+						.examDate(examSlot.getExamDate())
+						.examStartTime(examSlot.getStartTime())
+						.examEndTime(examSlot.getEndTime())
+						.availableSeats(examSlot.getTotalSeats() - examSlot.getBookedSeats())
+						.centerId(examSlot.getExamCenter().getCenterId())
+						.centerName(examSlot.getExamCenter().getCenterName())
+						.centerAddress(examSlot.getExamCenter().getAddressLine())
+						.centerCity(examSlot.getExamCenter().getCity())
+						.centerState(examSlot.getExamCenter().getState())
+						.centerPinCode(examSlot.getExamCenter().getPinCode())
+					.build()
+				)
+				.toList();
 	}
 }
