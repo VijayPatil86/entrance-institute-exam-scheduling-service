@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,10 +21,12 @@ import com.neec.dto.CreateExamSlotRequest;
 import com.neec.service.ExamSchedulingService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
 @RestController
 @CrossOrigin
 @RequestMapping("/api/v1")
+@Validated
 public class ExamSchedulingController {
 	private ExamSchedulingService examSchedulingService;
 
@@ -55,7 +58,9 @@ public class ExamSchedulingController {
 	}
 
 	@GetMapping("/centers/slots")
-	ResponseEntity<?> getAvailableSlotsByCity(@RequestParam(name = "city") String city){
+	ResponseEntity<?> getAvailableSlotsByCity(
+			@RequestParam(name = "city") @NotBlank(message = "value of request parameter city can not be blank") String city
+	){
 		return ResponseEntity.ok(examSchedulingService.findAvailableSlots(city));
 	}
 }
