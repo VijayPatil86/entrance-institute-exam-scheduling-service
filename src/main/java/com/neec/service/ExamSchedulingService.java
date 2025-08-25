@@ -14,7 +14,7 @@ public interface ExamSchedulingService {
 	List<ExamCenterResponseDTO> getAllCenters();
 
 	// Applicant Operations
-	//List<String> getAvailableCities();
+	List<String> getAvailableCities();
 	//List<ExamSlotDTO> findAvailableSlots(String city);
 	//void bookSlot(Long userId, Long slotId);
 }

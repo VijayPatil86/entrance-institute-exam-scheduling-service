@@ -103,4 +103,10 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 					.toList();
 		return listExamCenterResponseDTOs;
 	}
+
+	@Transactional(readOnly = true)
+	public List<String> getAvailableCities(){
+		List<String> listCityNames = examCenterRepository.findAllCities();
+		return listCityNames;
+	}
 }

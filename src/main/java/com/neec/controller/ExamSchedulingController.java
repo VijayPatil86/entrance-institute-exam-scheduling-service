@@ -1,5 +1,6 @@
 package com.neec.controller;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -45,5 +46,10 @@ public class ExamSchedulingController {
 	@GetMapping("/admin/centers")
 	ResponseEntity<?> getAllExamCenters(){
 		return ResponseEntity.ok(examSchedulingService.getAllCenters());
+	}
+
+	@GetMapping("/centers/cities")
+	ResponseEntity<List<String>> getAvailableCities(){
+		return ResponseEntity.ok(examSchedulingService.getAvailableCities());
 	}
 }
