@@ -238,6 +238,22 @@ public class ExamSchedulingControllerTest {
 				.build();
 	}
 
+	@Test
+	void test_getAvailableCities_DistinctCityNames_NaturalOrder() throws Exception {
+		List<String> listCityNames = List.of("Mumbai", "Pune", "Thane");
+		when(mockExamSchedulingService.getAvailableCities()).thenReturn(listCityNames);
+		RequestBuilder request = MockMvcRequestBuilders.get("/api/v1/centers/cities");
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		verify(mockExamSchedulingService).getAvailableCities();
+		assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
+		List<String> returnedListCityNames = objectMapper.readValue(
+				result.getResponse().getContentAsString(),
+				new TypeReference<List<String>>() {});
+		assertEquals(listCityNames, returnedListCityNames, "Returned city list is incorrect — content or order does not match expected");
+	}
+
 	private String toJsonString(CreateExamCenterRequestDTO dto) throws JsonProcessingException {
 		return objectMapper.writeValueAsString(dto);
 	}
