@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
+import com.neec.dto.CreateSlotBookingRequestDTO;
+import com.neec.dto.CreateSlotBookingResponseDTO;
+import com.neec.dto.CustomPrincipal;
 import com.neec.service.ExamSchedulingService;
 
 import jakarta.validation.Valid;
@@ -62,5 +66,15 @@ public class ExamSchedulingController {
 			@RequestParam(name = "city") @NotBlank(message = "value of request parameter city can not be blank") String city
 	){
 		return ResponseEntity.ok(examSchedulingService.findAvailableSlots(city));
+	}
+
+	@PostMapping("/bookings")
+	ResponseEntity<?> bookExamSlot(@Valid @RequestBody CreateSlotBookingRequestDTO createSlotBookingRequestDTO,
+			@AuthenticationPrincipal CustomPrincipal customPrincipal){
+		Long userId = Long.parseLong(customPrincipal.getSubject());
+		Long slotId = createSlotBookingRequestDTO.getSlotId();
+		CreateSlotBookingResponseDTO bookingConfirmation =
+				examSchedulingService.bookSlot(userId, slotId);
+		return ResponseEntity.status(HttpStatus.CREATED).body(bookingConfirmation);
 	}
 }
