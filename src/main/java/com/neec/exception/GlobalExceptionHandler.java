@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,6 +19,13 @@ import jakarta.validation.ConstraintViolationException;
 public class GlobalExceptionHandler {
 	@ExceptionHandler(exception = {HttpMessageNotReadableException.class})
 	public ResponseEntity<Map<String, String>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex){
+		if(ex.getCause().getMessage().contains("Unexpected character") ||
+		   ex.getCause().getMessage().contains("Unrecognized token")) {
+			return ResponseEntity.badRequest().body(Map.of("error", "Malformed JSON: A value is missing or improperly formatted."));
+		}
+		if(ex.getCause().getMessage().contains("Cannot deserialize value of type `java.lang.Long`")) {
+			return ResponseEntity.badRequest().body(Map.of("error", "Invalid value for 'slotId'. Expected a number."));
+		}
 		return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
 	}
 
@@ -52,5 +60,18 @@ public class GlobalExceptionHandler {
 		        .map(violation -> violation.getMessage())
 		        .collect(Collectors.toList());
 	    return ResponseEntity.badRequest().body(Map.of("errors", errors));
+	}
+
+	@ExceptionHandler(exception = {IllegalStateException.class})
+	public ResponseEntity<Map<String, String>> handleIllegalStateException(IllegalStateException ex){
+		return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+	}
+
+	@ExceptionHandler(exception = {DataIntegrityViolationException.class})
+	public ResponseEntity<Map<String, String>> handleDataIntegrityViolationException(DataIntegrityViolationException ex){
+		if(ex.getCause().getMessage().contains("duplicate key value violates unique constraint \"uk_slot_id_user_id\"")) {
+			return ResponseEntity.badRequest().body(Map.of("error", "You have already booked this exam slot."));
+		}
+		return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
 	}
 }
