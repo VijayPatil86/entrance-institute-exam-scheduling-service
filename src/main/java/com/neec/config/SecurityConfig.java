@@ -21,7 +21,8 @@ public class SecurityConfig {
 	};
 
 	final static private String[] END_POINTS_APPLICANT = {
-		"/api/v1/centers/**"
+		"/api/v1/centers/**",
+		"/api/v1/bookings"
 	};
 
 	@Bean
