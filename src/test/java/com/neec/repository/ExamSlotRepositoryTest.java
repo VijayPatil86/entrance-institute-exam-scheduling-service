@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,5 +138,27 @@ public class ExamSlotRepositoryTest {
 				examSlotRepository.findAvailableSlotsByCity("Mumbai");
 		assertEquals(1, availableSlotsByCity.size(), "Expected 1 available slots in Mumbai");
 		assertEquals("Mumbai", availableSlotsByCity.get(0).getExamCenter().getCity(), "Expected Exam Center as Mumbai");
+	}
+
+	@DirtiesContext
+	@Test
+	void test_findWithLockingBySlotId() {
+		ExamCenter examCenter_Pune = ExamCenter.builder().centerName("A B College").addressLine("A. B. Road").city("Pune")
+				.state("Maharashtra").pinCode("147258").contactPerson("Mr. R.K. Sane")
+				.contactPhone("9876543210").build();
+		ExamCenter savedExamCenter_Pune = examCenterRepository.save(examCenter_Pune);
+		ExamSlot examSlot_Pune = ExamSlot.builder()
+				.examCenter(savedExamCenter_Pune)
+				.examDate(LocalDate.of(2025, 01, 01))
+				.startTime(LocalTime.of(10, 0))
+				.endTime(LocalTime.of(10, 30))
+				.totalSeats(10)
+				.bookedSeats(5)
+				.build();
+		ExamSlot savedExamSlot_Pune = examSlotRepository.save(examSlot_Pune);
+		Optional<ExamSlot> optExamSlot =
+				examSlotRepository.findWithLockingBySlotId(savedExamSlot_Pune.getSlotId());
+		assertTrue(optExamSlot.isPresent(), "Exam slot should be available for given slot id");
+		assertEquals(savedExamSlot_Pune.getSlotId(), optExamSlot.get().getSlotId());
 	}
 }
