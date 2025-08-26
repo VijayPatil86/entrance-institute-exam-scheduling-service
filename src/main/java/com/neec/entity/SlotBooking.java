@@ -46,7 +46,7 @@ public class SlotBooking {
 
 	@Column(name = "BOOKING_STATUS", insertable = true, updatable = true, nullable = false, unique = false)
 	@Enumerated(EnumType.STRING)
-	SlotBookingStatus bookingStatus;
+	SlotBookingStatus slotBookingStatus;
 
 	@Column(name = "UPDATED_AT", insertable = true, updatable = true, nullable = false, unique = false)
 	OffsetDateTime updatedAt;
