@@ -10,10 +10,14 @@ import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
 import com.neec.dto.ExamCenterResponseDTO;
 import com.neec.dto.ExamSlotResponse;
+import com.neec.dto.CreateSlotBookingResponseDTO;
 import com.neec.entity.ExamCenter;
 import com.neec.entity.ExamSlot;
+import com.neec.entity.SlotBooking;
+import com.neec.enums.SlotBookingStatus;
 import com.neec.repository.ExamCenterRepository;
 import com.neec.repository.ExamSlotRepository;
+import com.neec.repository.SlotBookingRepository;
 
 import io.micrometer.observation.annotation.Observed;
 import jakarta.persistence.EntityManager;
@@ -24,12 +28,15 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 	private ExamCenterRepository examCenterRepository;
 	private ExamSlotRepository examSlotRepository;
 	private EntityManager entityManager;
+	private SlotBookingRepository slotBookingRepository;
 
 	public ExamSchedulingServiceImpl(ExamCenterRepository examCenterRepository,
-			ExamSlotRepository examSlotRepository, EntityManager entityManager) {
+			ExamSlotRepository examSlotRepository, EntityManager entityManager,
+			SlotBookingRepository slotBookingRepository) {
 		this.examCenterRepository = examCenterRepository;
 		this.examSlotRepository = examSlotRepository;
 		this.entityManager = entityManager;
+		this.slotBookingRepository = slotBookingRepository;
 	}
 
 	@Transactional
@@ -131,5 +138,37 @@ public class ExamSchedulingServiceImpl implements ExamSchedulingService {
 					.build()
 				)
 				.toList();
+	}
+
+	@Transactional
+	@Override
+	public CreateSlotBookingResponseDTO bookSlot(Long userId, Long slotId) {
+		ExamSlot examSlot = examSlotRepository.findWithLockingBySlotId(slotId)
+			.orElseThrow(() -> new IllegalArgumentException("Exam Slot with id " + slotId + " not found."));
+		if(examSlot.getBookedSeats() >= examSlot.getTotalSeats())
+			throw new IllegalStateException("this exam slot is already full");
+		examSlot.setBookedSeats(examSlot.getBookedSeats() + 1);
+		examSlotRepository.save(examSlot);
+
+		SlotBooking slotBooking = SlotBooking.builder()
+				.userId(userId)
+				.examSlot(examSlot)
+				.slotBookingStatus(SlotBookingStatus.CONFIRMED)
+				.build();
+		SlotBooking savedSlotBooking = slotBookingRepository.save(slotBooking);
+
+		CreateSlotBookingResponseDTO createSlotBookingResponseDTO = CreateSlotBookingResponseDTO.builder()
+				.bookingId(savedSlotBooking.getBookingId())
+				.slotBookingStatus(savedSlotBooking.getSlotBookingStatus())
+				.slotBookingDateTime(slotBooking.getBookingTime())
+				.slotId(examSlot.getSlotId())
+				.examDate(examSlot.getExamDate())
+				.examStartTime(examSlot.getStartTime())
+				.examEndTime(examSlot.getEndTime())
+				.centerName(examSlot.getExamCenter().getCenterName())
+				.centerAddress(examSlot.getExamCenter().getAddressLine())
+				.centerCity(examSlot.getExamCenter().getCity())
+				.build();
+		return createSlotBookingResponseDTO;
 	}
 }
