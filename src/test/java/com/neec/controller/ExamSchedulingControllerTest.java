@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -23,8 +24,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -39,6 +45,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
+import com.neec.dto.CreateSlotBookingRequestDTO;
+import com.neec.dto.CustomPrincipal;
 import com.neec.dto.ExamCenterResponseDTO;
 import com.neec.dto.ExamSlotResponse;
 import com.neec.service.ExamSchedulingService;
@@ -304,6 +312,33 @@ public class ExamSchedulingControllerTest {
 		assertEquals(5, firstSlot.getAvailableSeats(), "Expected number of available seats be 5");
 	}
 
+	@Test
+	void test_bookExamSlot_DuplicateSlotBooking() throws Exception {
+		Throwable dbCause = new RuntimeException("duplicate key value violates unique constraint \"uk_slot_id_user_id\"");
+		when(mockExamSchedulingService.bookSlot(anyLong(), anyLong()))
+			.thenThrow(new DataIntegrityViolationException("Simulated DB constraint violation", dbCause));
+		CustomPrincipal customPrincipal = CustomPrincipal.builder()
+				.subject("102")
+				.emailAddress("abc@gmail.com")
+				.build();
+		List<GrantedAuthority> listGrantedAuthority =
+				List.of(new SimpleGrantedAuthority("APPLICANT"));
+		TestingAuthenticationToken authentication =
+				new TestingAuthenticationToken(customPrincipal, listGrantedAuthority);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		CreateSlotBookingRequestDTO slotBookingRequestDTO =
+				new CreateSlotBookingRequestDTO(1L);
+		RequestBuilder request = MockMvcRequestBuilders.post("/api/v1/bookings")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(toJsonString(slotBookingRequestDTO));
+		MvcResult result = mockMvc.perform(request)
+				.andDo(print())
+				.andReturn();
+		assertEquals(HttpStatus.BAD_REQUEST.value(), result.getResponse().getStatus());
+		JsonNode jsonNode = toJsonNode(result.getResponse().getContentAsString());
+		assertEquals("You have already booked this exam slot.", jsonNode.get("error").asText());
+	}
+
 	private List<ExamSlotResponse> buildAndReturn_List_ExamSlotResponse(){
 		return List.of(
 				ExamSlotResponse.builder()
@@ -353,6 +388,10 @@ public class ExamSchedulingControllerTest {
 	}
 
 	private String toJsonString(CreateExamSlotRequest dto) throws JsonProcessingException {
+		return objectMapper.writeValueAsString(dto);
+	}
+
+	private String toJsonString(CreateSlotBookingRequestDTO dto) throws JsonProcessingException {
 		return objectMapper.writeValueAsString(dto);
 	}
 
