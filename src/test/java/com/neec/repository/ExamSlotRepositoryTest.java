@@ -2,6 +2,8 @@ package com.neec.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
@@ -10,10 +12,12 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.postgresql.util.PSQLException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.annotation.DirtiesContext;
 
 import com.neec.entity.ExamCenter;
@@ -160,5 +164,22 @@ public class ExamSlotRepositoryTest {
 				examSlotRepository.findWithLockingBySlotId(savedExamSlot_Pune.getSlotId());
 		assertTrue(optExamSlot.isPresent(), "Exam slot should be available for given slot id");
 		assertEquals(savedExamSlot_Pune.getSlotId(), optExamSlot.get().getSlotId());
+	}
+
+	@DirtiesContext
+	@Test
+	void test_save_ExamSlot_CenterId_ExamDate_Both_Null() {
+		ExamSlot examSlot_Pune = ExamSlot.builder()
+				.examCenter(null)
+				.examDate(null)
+				.startTime(LocalTime.of(10, 0))
+				.endTime(LocalTime.of(10, 30))
+				.totalSeats(10)
+				.bookedSeats(5)
+				.build();
+		DataIntegrityViolationException ex = assertThrows(DataIntegrityViolationException.class,
+				() -> examSlotRepository.save(examSlot_Pune));
+		assertNotNull(ex);
+		assertTrue(ex.getCause().getMessage().contains("violates not-null constraint"));
 	}
 }
