@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
@@ -354,5 +355,32 @@ public class ExamSchedulingServiceTest {
 		assertEquals("A. B. Road", createSlotBookingResponseDTO.getCenterAddress());
 		assertEquals("Pune", createSlotBookingResponseDTO.getCenterCity());
 		assertEquals(toSaveSlotBooking.getBookingTime(), createSlotBookingResponseDTO.getSlotBookingDateTime());
+	}
+
+	@Test
+	void test_bookSlot_BookSameExamSlotAgain() {
+		ExamCenter examCenter_Pune = ExamCenter.builder().centerName("A B College").addressLine("A. B. Road").city("Pune")
+				.state("Maharashtra").pinCode("147258").contactPerson("Mr. R.K. Sane")
+				.contactPhone("9876543210").build();
+		ExamSlot examSlot = ExamSlot.builder()
+				.slotId(1L)
+				.examCenter(examCenter_Pune)
+				.examDate(LocalDate.of(2025, 12, 02))
+				.startTime(LocalTime.of(10, 0))
+				.endTime(LocalTime.of(10, 30))
+				.totalSeats(10)
+				.bookedSeats(5)
+				.build();
+		when(mockExamSlotRepository.findWithLockingBySlotId(anyLong()))
+			.thenReturn(Optional.of(examSlot));
+		ExamSlot savedExamSlot = ExamSlot.builder().build();
+		when(mockExamSlotRepository.save(any(ExamSlot.class)))
+			.thenReturn(savedExamSlot);
+		when(mockSlotBookingRepository.save(any(SlotBooking.class)))
+			.thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint \"uk_slot_id_user_id\""));
+		DataIntegrityViolationException ex = assertThrows(DataIntegrityViolationException.class,
+				() -> examSchedulingServiceImpl.bookSlot(1L, 1L));
+		assertNotNull(ex);
+		assertTrue(ex.getMessage().contains("duplicate key value violates unique constraint \"uk_slot_id_user_id\""));
 	}
 }
