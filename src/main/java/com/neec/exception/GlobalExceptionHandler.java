@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -70,8 +71,13 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(exception = {DataIntegrityViolationException.class})
 	public ResponseEntity<Map<String, String>> handleDataIntegrityViolationException(DataIntegrityViolationException ex){
 		if(ex.getCause().getMessage().contains("duplicate key value violates unique constraint \"uk_slot_id_user_id\"")) {
-			return ResponseEntity.badRequest().body(Map.of("error", "You have already booked this exam slot."));
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "You have already booked this exam slot."));
 		}
 		return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+	}
+
+	@ExceptionHandler(exception = {Exception.class})
+	public ResponseEntity<?> handleException(Exception ex){
+		return ResponseEntity.internalServerError().body(Map.of("error", "An unexpected internal server error occurred."));
 	}
 }
