@@ -8,13 +8,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,12 +30,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.neec.dto.CreateExamCenterRequestDTO;
 import com.neec.dto.CreateExamCenterResponseDTO;
 import com.neec.dto.CreateExamSlotRequest;
+import com.neec.dto.CreateSlotBookingResponseDTO;
 import com.neec.dto.ExamCenterResponseDTO;
 import com.neec.dto.ExamSlotResponse;
 import com.neec.entity.ExamCenter;
 import com.neec.entity.ExamSlot;
+import com.neec.entity.SlotBooking;
+import com.neec.enums.SlotBookingStatus;
 import com.neec.repository.ExamCenterRepository;
 import com.neec.repository.ExamSlotRepository;
+import com.neec.repository.SlotBookingRepository;
 
 import jakarta.persistence.EntityManager;
 
@@ -43,6 +51,8 @@ public class ExamSchedulingServiceTest {
 	private ExamSlotRepository mockExamSlotRepository;
 	@Mock
 	private EntityManager mockEntityManager;
+	@Mock
+	private SlotBookingRepository mockSlotBookingRepository;
 	@InjectMocks
 	private ExamSchedulingServiceImpl examSchedulingServiceImpl;
 
@@ -255,5 +265,94 @@ public class ExamSchedulingServiceTest {
 		ExamSlotResponse firstSlot = listExamSlotResponse.get(0);
 		assertEquals(5, firstSlot.getAvailableSeats(), "Available seats calculation is icorrect for first slot");
 		assertEquals("Pune", firstSlot.getCenterCity(), "Exepcted slot city as Pune");
+	}
+
+	@Test
+	void test_bookSlot_ExamSlot_NotExists() {
+		when(mockExamSlotRepository.findWithLockingBySlotId(anyLong()))
+			.thenReturn(Optional.empty());
+		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+				() -> examSchedulingServiceImpl.bookSlot(1L, 2L));
+		verify(mockExamSlotRepository).findWithLockingBySlotId(anyLong());
+		assertEquals("Exam Slot with id 2 not found.", ex.getMessage());
+		verify(mockExamSlotRepository, never()).save(any(ExamSlot.class));
+		verify(mockSlotBookingRepository, never()).save(any(SlotBooking.class));
+	}
+
+	@Test
+	void test_bookSlot_SlotAlreadyFull() {
+		ExamSlot examSlot = ExamSlot.builder()
+				.slotId(1L)
+				.bookedSeats(10)
+				.totalSeats(10)
+				.build();
+		when(mockExamSlotRepository.findWithLockingBySlotId(anyLong()))
+			.thenReturn(Optional.of(examSlot));
+		IllegalStateException ex = assertThrows(IllegalStateException.class,
+				() -> examSchedulingServiceImpl.bookSlot(1L, 1L));
+		verify(mockExamSlotRepository).findWithLockingBySlotId(anyLong());
+		assertEquals("this exam slot is already full", ex.getMessage());
+		// Verify that no database write operations were attempted
+		verify(mockExamSlotRepository, never()).save(any(ExamSlot.class));
+		verify(mockSlotBookingRepository, never()).save(any(SlotBooking.class));
+	}
+
+	@Test
+	void test_bookSlot_Success() {
+		ExamCenter examCenter_Pune = ExamCenter.builder().centerName("A B College").addressLine("A. B. Road").city("Pune")
+				.state("Maharashtra").pinCode("147258").contactPerson("Mr. R.K. Sane")
+				.contactPhone("9876543210").build();
+		ExamSlot examSlot = ExamSlot.builder()
+				.slotId(1L)
+				.examCenter(examCenter_Pune)
+				.examDate(LocalDate.of(2025, 12, 02))
+				.startTime(LocalTime.of(10, 0))
+				.endTime(LocalTime.of(10, 30))
+				.totalSeats(10)
+				.bookedSeats(5)
+				.build();
+		when(mockExamSlotRepository.findWithLockingBySlotId(anyLong()))
+			.thenReturn(Optional.of(examSlot));
+		ExamSlot savedExamSlot = ExamSlot.builder().build();
+		when(mockExamSlotRepository.save(any(ExamSlot.class)))
+			.thenReturn(savedExamSlot);
+		SlotBooking savedSlotBooking = SlotBooking.builder()
+				.bookingId(1L)
+				.slotBookingStatus(SlotBookingStatus.CONFIRMED)
+				.bookingTime(OffsetDateTime.of(LocalDate.of(2025, 12, 01), LocalTime.of(10, 0), ZoneOffset.UTC))
+				.build();
+		when(mockSlotBookingRepository.save(any(SlotBooking.class)))
+			.thenReturn(savedSlotBooking);
+		CreateSlotBookingResponseDTO createSlotBookingResponseDTO =
+				examSchedulingServiceImpl.bookSlot(1L, 1L);
+		verify(mockExamSlotRepository).findWithLockingBySlotId(anyLong());
+
+		ArgumentCaptor<ExamSlot> argCaptorExamSlot =
+				ArgumentCaptor.forClass(ExamSlot.class);
+		verify(mockExamSlotRepository).save(argCaptorExamSlot.capture());
+		ExamSlot toSaveExamSlot = argCaptorExamSlot.getValue();
+		assertNotNull(toSaveExamSlot);
+		assertEquals(1L, toSaveExamSlot.getSlotId());
+		assertEquals(6, toSaveExamSlot.getBookedSeats());
+
+		ArgumentCaptor<SlotBooking> argCaptorSlotBooking =
+				ArgumentCaptor.forClass(SlotBooking.class);
+		verify(mockSlotBookingRepository).save(argCaptorSlotBooking.capture());
+		SlotBooking toSaveSlotBooking = argCaptorSlotBooking.getValue();
+		assertNotNull(toSaveSlotBooking);
+		assertEquals(1L, toSaveSlotBooking.getUserId());
+		assertEquals(1L, toSaveSlotBooking.getExamSlot().getSlotId());
+		assertEquals(SlotBookingStatus.CONFIRMED, toSaveSlotBooking.getSlotBookingStatus());
+
+		assertEquals(1L, createSlotBookingResponseDTO.getBookingId());
+		assertEquals(SlotBookingStatus.CONFIRMED, createSlotBookingResponseDTO.getSlotBookingStatus());
+		assertEquals(1L, createSlotBookingResponseDTO.getSlotId());
+		assertEquals(LocalDate.of(2025, 12, 02), createSlotBookingResponseDTO.getExamDate());
+		assertEquals(LocalTime.of(10, 0), createSlotBookingResponseDTO.getExamStartTime());
+		assertEquals(LocalTime.of(10, 30), createSlotBookingResponseDTO.getExamEndTime());
+		assertEquals("A B College", createSlotBookingResponseDTO.getCenterName());
+		assertEquals("A. B. Road", createSlotBookingResponseDTO.getCenterAddress());
+		assertEquals("Pune", createSlotBookingResponseDTO.getCenterCity());
+		assertEquals(toSaveSlotBooking.getBookingTime(), createSlotBookingResponseDTO.getSlotBookingDateTime());
 	}
 }
